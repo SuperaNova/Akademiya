@@ -1,59 +1,51 @@
-import streamlit as st
-import base64
-import fitz  # PyMuPDF
-from io import BytesIO
-import openai
-from dotenv import load_dotenv
 import os
 import re
+import base64
+
+import streamlit as st
+from dotenv import load_dotenv
+import fitz  # PyMuPDF
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+MAX_WORDS = 7500  # around 8k tokens
 
 # Function to get a response from GPT
 def get_gpt_response(prompt):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4.1-nano",
+        response = client.chat.completions.create(
+            model="gpt-4.1-nano",  # 4.1 cheapest model rn
             messages=[
                 {
                     "role": "system",
                     "content": """
-                        Read the following text carefully. Then, based on the content, summarize it in a short paragraph.
-                        Create key points or notes for easy reference, and make short flashcards for review.
-                        Each flashcard should consist of a question and multiple choices (a, b, etc.) as possible answers.
+                    You are an educational assistant.
+                    Given the following text:
+                    - First, provide a concise single-paragraph summary of the content.
+                    - Then, list 3–7 key points or notes as bullet points, focusing on the most important details.
+                    - Finally, create 3–5 flashcards. Each flashcard MUST have:
+                      - a clear question,
+                      - 3 or 4 multiple-choice options labeled a), b), c), (and d) if needed),
+                      - the correct answer indicated (e.g., “Correct answer: a)” at the end of each flashcard).
+                    Format your response with clear section headers: Summary, Key Points, and Flashcards.
                     """
                 },
                 {"role": "user", "content": prompt}
             ],
+            max_tokens=1000  # Max Output Token Count
         )
-        return response['choices'][0]['message']['content'].strip()
+        output = response.choices[0].message.content.strip()
+        in_tokens = getattr(response.usage, 'prompt_tokens', None)
+        out_tokens = getattr(response.usage, 'completion_tokens', None)
+        total = getattr(response.usage, 'total_tokens', None)
+        return output, in_tokens, out_tokens, total
     except Exception as e:
-        return f"Error: {e}"
+        return f"Error: {e}", None, None, None
 
-# Function to split large texts into chunks
-def split_text_into_chunks(text, max_chunk_size=1000):
-    words = text.split()
-    chunks = []
-    current_chunk = []
-    current_size = 0
-
-    for word in words:
-        word_size = len(word.split())  # Approximate token count
-        if current_size + word_size > max_chunk_size:
-            chunks.append(' '.join(current_chunk))
-            current_chunk = [word]
-            current_size = word_size
-        else:
-            current_chunk.append(word)
-            current_size += word_size
-
-    if current_chunk:
-        chunks.append(' '.join(current_chunk))
-    return chunks
-
-# display PDF
+# Display PDF in Streamlit
 def show_pdf_from_bytes(pdf_bytes):
     try:
         base64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
@@ -62,7 +54,7 @@ def show_pdf_from_bytes(pdf_bytes):
     except Exception as e:
         st.error(f"Error displaying PDF: {e}")
 
-# Function to extract and clean text from PDF bytes
+# Extract text from PDF bytes
 def extract_text_from_bytes(pdf_bytes):
     try:
         # Open PDF stream
@@ -75,26 +67,13 @@ def extract_text_from_bytes(pdf_bytes):
         st.error(f"Error reading PDF: {e}")
         return ""
 
-# Function to clean extracted text
+# Clean extracted text
 def clean_extracted_text(text):
     # Remove multiple spaces, newlines, and trim
     cleaned_text = re.sub(r'\s+', ' ', text)
     return cleaned_text.strip()
 
 st.title("Akademiya Quiz Generation Demo")
-
-# Initialize chat history
-if 'messages' not in st.session_state:
-    st.session_state['messages'] = []
-
-# Display chat history
-for message in st.session_state['messages']:
-    role = message['role'].capitalize()
-    content = message['content']
-    if role == "User":
-        st.markdown(f"**You:** {content}")
-    else:
-        st.markdown(f"**Bot:** {content}")
 
 # Upload PDF file
 uploaded = st.file_uploader("Upload a PDF file:", type=["pdf"])
@@ -112,35 +91,24 @@ if uploaded:
         st.subheader("Cleaned Extracted Text from PDF:")
         st.text_area("Extracted and Cleaned Text", cleaned_text, height=300)
 
-        # Split cleaned text into chunks for GPT
-        chunks = split_text_into_chunks(cleaned_text)
-        responses = []
+        # 8k max tokens
+        words = cleaned_text.split()
+        if len(words) > MAX_WORDS:
+            st.warning(f"PDF is long; only the first {MAX_WORDS} words ({len(words)} provided) will be processed.")
+            cleaned_text = ' '.join(words[:MAX_WORDS])
 
-        # Send chunks to GPT
-        for chunk in chunks:
-            response = get_gpt_response(chunk)
-            responses.append(response)
+        st.write(f"Input words sent to GPT: {len(cleaned_text.split())}")
 
-        # Combine responses
-        final_response = " ".join(responses)
-
-        st.subheader("GPT Response (Summary, Notes, Flashcards):")
-        st.write(final_response)
+        response, in_tokens, out_tokens, total = get_gpt_response(cleaned_text)
+        if response:
+            st.subheader("GPT Response (Summary, Notes, Flashcards):")
+            st.write(response)
+            if in_tokens is not None and out_tokens is not None and total is not None:
+                st.info(f"Token usage — Input: {in_tokens}, Output: {out_tokens}, Total: {total}")
+        else:
+            st.warning("No valid response from GPT.")
     else:
         st.warning("No text could be extracted from the uploaded PDF.")
-
-# User input for conversation
-user_input = st.text_input("Your message:", key="user_input")
-
-if user_input:
-    # Add user message
-    st.session_state['messages'].append({"role": "user", "content": user_input})
-    # Get bot response
-    bot_response = get_gpt_response(user_input)
-    st.session_state['messages'].append({"role": "bot", "content": bot_response})
-    # Display latest exchange
-    st.markdown(f"**You:** {user_input}")
-    st.markdown(f"**Bot:** {bot_response}")
 
 # Rerun button
 if st.button("🔁 Rerun"):
