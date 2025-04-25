@@ -5,59 +5,48 @@ import base64
 import streamlit as st
 from dotenv import load_dotenv
 import fitz  # PyMuPDF
-from openai import OpenAI
 
-# Load environment variables
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# --- Page Config ---
+st.set_page_config(
+    page_title="Akademiya Upload",
+    page_icon="🎓",
+    layout="centered"
+)
 
-MAX_WORDS = 7500  # around 8k tokens
-
-# Function to get a response from GPT
-def get_gpt_response(prompt):
+def load_css(file_path):
+    """Reads a CSS file and returns its content."""
     try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-nano",  # 4.1 cheapest model rn
-            messages=[
-                {
-                    "role": "system",
-                    "content": """
-                    You are an educational assistant.
-                    Given the following text:
-                    - First, provide a concise single-paragraph summary of the content.
-                    - Then, list 3–7 key points or notes as bullet points, focusing on the most important details.
-                    - Finally, create 3–5 flashcards. Each flashcard MUST have:
-                      - a clear question,
-                      - 3 or 4 multiple-choice options labeled a), b), c), (and d) if needed),
-                      - the correct answer indicated (e.g., “Correct answer: a)” at the end of each flashcard).
-                    Format your response with clear section headers: Summary, Key Points, and Flashcards.
-                    """
-                },
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000  # Max Output Token Count
-        )
-        output = response.choices[0].message.content.strip()
-        in_tokens = getattr(response.usage, 'prompt_tokens', None)
-        out_tokens = getattr(response.usage, 'completion_tokens', None)
-        total = getattr(response.usage, 'total_tokens', None)
-        return output, in_tokens, out_tokens, total
-    except Exception as e:
-        return f"Error: {e}", None, None, None
+        with open(file_path) as f:
+            return f.read()
+    except FileNotFoundError:
+        st.error(f"CSS file not found at {file_path}")
+        return ""
 
-# Display PDF in Streamlit
+css_content = load_css("styles.css")
+if css_content:
+    st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
+
+# --- Environment Loading ---
+load_dotenv()
+
+
+# --- Constants ---
+MAX_WORDS = 7500  # Max words to process from PDF
+
+
+# --- Helper Functions ---
 def show_pdf_from_bytes(pdf_bytes):
     try:
         base64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
+        # Display PDF using an iframe is necessary in Streamlit
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="500px" type="application/pdf"></iframe>'
         st.markdown(pdf_display, unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Error displaying PDF: {e}")
 
-# Extract text from PDF bytes
+
 def extract_text_from_bytes(pdf_bytes):
     try:
-        # Open PDF stream
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         text = ""
         for page in doc:
@@ -67,49 +56,94 @@ def extract_text_from_bytes(pdf_bytes):
         st.error(f"Error reading PDF: {e}")
         return ""
 
-# Clean extracted text
+
 def clean_extracted_text(text):
-    # Remove multiple spaces, newlines, and trim
+    # Basic cleaning: Replace multiple whitespace chars with single space
     cleaned_text = re.sub(r'\s+', ' ', text)
     return cleaned_text.strip()
 
-st.title("Akademiya Quiz Generation Demo")
 
-# Upload PDF file
-uploaded = st.file_uploader("Upload a PDF file:", type=["pdf"])
+# --- Session State Initialization ---
+def initialize_state():
+    state_keys = [
+        'uploaded_bytes', 'extracted_text', 'gpt_response_raw',
+        'summary', 'key_points', 'flashcards', 'quiz',
+        'parsing_failed'
+    ]
+    for key in state_keys:
+        if key not in st.session_state:
+            st.session_state[key] = None
 
+initialize_state()
+
+
+# --- Main Page UI and Logic ---
+st.title("Akademiya Content Generation")
+st.header("1. Upload Your PDF")
+
+# File Uploader
+uploaded = st.file_uploader(
+    "Select a PDF file:", 
+    type=["pdf"], 
+    key="pdf_uploader",
+    label_visibility="collapsed"
+)
+
+# Process uploaded file
 if uploaded:
-    uploaded_bytes = uploaded.read()
-    # Show PDF
-    st.subheader("Uploaded PDF:")
-    show_pdf_from_bytes(uploaded_bytes)
+    uploaded_bytes_value = uploaded.getvalue()
+    if st.session_state.get('uploaded_bytes') != uploaded_bytes_value:
+        st.session_state['uploaded_bytes'] = uploaded_bytes_value
+        
+        keys_to_reset = [
+            'extracted_text', 'gpt_response_raw', 'summary', 
+            'key_points', 'flashcards', 'quiz'
+        ]
+        for key in keys_to_reset:
+            st.session_state[key] = None 
+            
+        st.session_state['parsing_failed'] = False
 
-    # Extract and clean text
-    raw_text = extract_text_from_bytes(uploaded_bytes)
-    if raw_text:
-        cleaned_text = clean_extracted_text(raw_text)
-        st.subheader("Cleaned Extracted Text from PDF:")
-        st.text_area("Extracted and Cleaned Text", cleaned_text, height=300)
-
-        # 8k max tokens
-        words = cleaned_text.split()
-        if len(words) > MAX_WORDS:
-            st.warning(f"PDF is long; only the first {MAX_WORDS} words ({len(words)} provided) will be processed.")
-            cleaned_text = ' '.join(words[:MAX_WORDS])
-
-        st.write(f"Input words sent to GPT: {len(cleaned_text.split())}")
-
-        response, in_tokens, out_tokens, total = get_gpt_response(cleaned_text)
-        if response:
-            st.subheader("GPT Response (Summary, Notes, Flashcards):")
-            st.write(response)
-            if in_tokens is not None and out_tokens is not None and total is not None:
-                st.info(f"Token usage — Input: {in_tokens}, Output: {out_tokens}, Total: {total}")
+        # Attempt text extraction
+        with st.spinner("Processing PDF..."):
+            raw_text = extract_text_from_bytes(st.session_state['uploaded_bytes'])
+        if raw_text:
+            cleaned_text = clean_extracted_text(raw_text)
+            words = cleaned_text.split()
+            if len(words) > MAX_WORDS:
+                st.warning(f"PDF is long; only the first {MAX_WORDS} words ({len(words)} provided) will be processed.")
+                cleaned_text = ' '.join(words[:MAX_WORDS])
+            st.session_state['extracted_text'] = cleaned_text
+            st.success("PDF processed successfully!")
         else:
-            st.warning("No valid response from GPT.")
-    else:
-        st.warning("No text could be extracted from the uploaded PDF.")
+            st.error("Could not extract text from the PDF.")
+            st.session_state['uploaded_bytes'] = None 
 
-# Rerun button
-if st.button("🔁 Rerun"):
-    st.experimental_rerun()
+# Display Previews (only if upload was successful)
+if st.session_state.get('uploaded_bytes'):
+    st.subheader("PDF Preview:")
+    show_pdf_from_bytes(st.session_state['uploaded_bytes'])
+
+    if st.session_state.get('extracted_text'):
+         with st.expander("View Extracted Text"):
+              # Use disabled text_area for preview
+              st.text_area("Text Preview", st.session_state['extracted_text'], height=200, disabled=True, label_visibility="collapsed")
+    else:
+         st.warning("No text was extracted to preview.")
+
+# Navigation Button
+if st.session_state.get('extracted_text'):
+    st.divider()
+    st.header("2. Configure & Generate")
+    # Use full width button for primary navigation
+    if st.button("Continue to Configuration ->", use_container_width=True):
+        try:
+            # Use Streamlit's preferred navigation method
+            st.switch_page("pages/1_Configure_Generation.py")
+        except Exception as e:
+            st.error(f"Navigation failed (requires Streamlit 1.28+): {e}")
+            st.info("Please navigate using the sidebar.")
+
+else:
+    # Show info if no PDF is uploaded yet
+    st.info("Upload a PDF file to begin the process.")

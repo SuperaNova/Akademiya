@@ -1,0 +1,15 @@
+[theme]
+# Primary color used for interactive elements (like the buttons we styled)
+primaryColor="#4CAF50"
+
+# Background color for the main content area (outside the frame)
+backgroundColor="#DADADA" # User requested grey
+
+# Background color for sidebar and the 'phone screen'
+secondaryBackgroundColor="#F8F8F0" # Light Ivory/Off-white for the phone screen background
+
+# Text color
+textColor="#262730" # Dark text (will apply inside the phone screen)
+
+# Font (optional, can use "sans serif", "serif", or "monospace")
+font="sans serif" 

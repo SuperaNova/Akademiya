@@ -1,0 +1,178 @@
+/* Set body background using theme variable */
+body {
+    background-color: var(--background-color) !important;
+}
+
+/* --- Mobile Frame Simulation --- */
+.main .block-container {
+    max-width: 480px !important;
+    padding: 1.5rem 1rem 2rem 1rem !important;
+    margin: 2rem auto !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+    background-color: var(--secondary-background-color) !important;
+    color: var(--text-color) !important;
+}
+
+/* Ensure text elements inside frame use correct color */
+.main .block-container h1,
+.main .block-container h2,
+.main .block-container h3,
+.main .block-container h4,
+.main .block-container h5,
+.main .block-container h6,
+.main .block-container p,
+.main .block-container li,
+.main .block-container label,
+.main .block-container div,
+.main .block-container span {
+    color: var(--text-color) !important;
+}
+
+/* --- Header Styling --- */
+.main .block-container h1 { font-size: 1.6rem !important; margin-bottom: 0.8rem !important; }
+.main .block-container h2 { font-size: 1.3rem !important; margin-top: 1.5rem !important; margin-bottom: 0.6rem !important; }
+.main .block-container h3 { font-size: 1.1rem !important; margin-top: 1.2rem !important; margin-bottom: 0.4rem !important; }
+
+/* --- Button Styling (Primary Actions) --- */
+.stButton > button {
+    width: 100%;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.75em 1em !important;
+    background-color: #3D7C40 !important; /* Dark Green */
+    color: white !important;
+    font-weight: bold !important;
+}
+.stButton > button:hover { background-color: #316333 !important; color: white !important; }
+.stButton > button:active { background-color: #254A27 !important; color: white !important; }
+
+/* Specific button adjustments (Back/Secondary Actions) */
+.stButton[key*="Back"] > button,
+.stButton[key*="add_new_q_"] > button,
+.stButton[key*="add_new_fc_"] > button { 
+     background-color: var(--secondary-background-color) !important; 
+     color: #3D7C40 !important; 
+     border: 1px solid #3D7C40 !important; 
+}
+.stButton[key*="Back"] > button:hover,
+.stButton[key*="add_new_q_"] > button:hover,
+.stButton[key*="add_new_fc_"] > button:hover {
+     background-color: #e8f0e8 !important;
+     color: #316333 !important;
+     border-color: #316333 !important;
+}
+
+/* --- File Uploader Styling --- */
+[data-testid="stFileUploader"] {
+    border: 1px dashed var(--text-color) !important;
+    border-radius: 8px !important;
+    background-color: #FFFFFF !important; 
+    padding: 1rem !important;
+}
+ [data-testid="stFileUploader"] label { margin-bottom: 0.5rem !important; }
+[data-testid="stFileUploader"] p { font-size: 0.9rem !important; margin-top: 0.3rem !important; }
+/* Uploader Button */
+.stFileUploader label > div > button {
+    border: 1px solid #3D7C40 !important;
+    border-radius: 5px !important;
+    background-color: #FFFFFF !important;
+    color: #3D7C40 !important;
+    padding: 0.3em 0.8em !important;
+}
+ .stFileUploader label > div > button:hover {
+    border-color: #316333 !important;
+    background-color: #f0f0f0 !important;
+    color: #316333 !important;
+}
+
+/* --- Expander Styling --- */
+[data-testid="stExpander"] {
+    border: 1px solid #D0D0D0 !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+    background-color: #FFFFFF !important; 
+    margin-bottom: 1rem !important;
+}
+ [data-testid="stExpander"] > div[role="button"] { /* Header */
+    border-radius: 8px 8px 0 0 !important;
+    background-color: transparent !important;
+    padding: 0.75rem 1rem !important;
+    font-weight: 500 !important;
+ }
+[data-testid="stExpander"] [data-testid="stExpanderDetails"] { /* Content */
+    padding: 0 1rem 1rem 1rem !important;
+    border-top: 1px solid #D0D0D0 !important;
+    background-color: transparent !important;
+ }
+
+/* --- Radio Button Styling (Configure Page) --- */
+.stRadio [role="radiogroup"] { justify-content: space-around !important; }
+ .stRadio label {
+     background-color: #EAEAEA !important; 
+     padding: 0.5rem 0.8rem !important;
+     border-radius: 20px !important; /* Pill shape */
+     margin: 0.2rem !important;
+     font-size: 0.85rem !important;
+     border: 1px solid transparent !important;
+ }
+/* Selected radio button */
+ .stRadio label input:checked + div {
+     background-color: #3D7C40 !important; 
+     color: white !important;
+     border: 1px solid #3D7C40 !important;
+ }
+
+/* --- Toggle Styling (Configure Page) --- */
+[data-testid="stToggle"] label { color: var(--text-color) !important; }
+
+/* --- Info/Warning Boxes Styling --- */
+[data-testid="stAlert"] { border-radius: 8px !important; padding: 0.8rem 1rem !important; }
+
+/* --- 'Change Question' button (Flashcards) --- */
+.stButton[key*="change_q_"] > button {
+    background-color: var(--secondary-background-color) !important; 
+    color: #555555 !important;
+    border: 1px solid #cccccc !important;
+    font-weight: normal !important;
+    width: auto !important;
+    float: right;
+    padding: 0.2em 0.6em !important;
+    font-size: 0.85rem !important;
+}
+/* (hover/active states) */
+.stButton[key*="change_q_"] > button:hover { background-color: #e8e8e8 !important; color: #333333 !important; border-color: #bbbbbb !important; }
+.stButton[key*="change_q_"] > button:active { background-color: #dddddd !important; border-color: #aaaaaa !important; color: #000000 !important; }
+
+/* --- 'Change Question' button (Quiz page) --- */
+.stButton[key*="change_quiz_q_"] > button {
+    background-color: var(--secondary-background-color) !important;
+    color: #555555 !important;
+    border: 1px solid #cccccc !important;
+    font-weight: normal !important;
+    width: auto !important;
+    padding: 0.1em 0.5em !important;
+    font-size: 0.8rem !important;
+    margin-bottom: 0 !important;
+    line-height: 1.2 !important;
+}
+ /* (hover/active states) */
+.stButton[key*="change_quiz_q_"] > button:hover { background-color: #e8e8e8 !important; color: #333333 !important; border-color: #bbbbbb !important; }
+.stButton[key*="change_quiz_q_"] > button:active { background-color: #dddddd !important; border-color: #aaaaaa !important; color: #000000 !important; }
+
+/* --- 'Add Another Question/Card' buttons --- */
+.stButton[key*="add_new_q_"] > button,
+.stButton[key*="add_new_fc_"] > button { 
+    width: 100%; 
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.75em 1em !important;
+    background-color: #6c757d !important; /* Grey */
+    color: white !important;
+    font-weight: bold !important;
+}
+/* (hover/active states) */
+.stButton[key*="add_new_q_"] > button:hover,
+.stButton[key*="add_new_fc_"] > button:hover { background-color: #5a6268 !important; color: white !important; }
+.stButton[key*="add_new_q_"] > button:active,
+.stButton[key*="add_new_fc_"] > button:active { background-color: #545b62 !important; color: white !important; } 
