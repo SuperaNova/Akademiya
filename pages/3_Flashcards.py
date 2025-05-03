@@ -80,20 +80,12 @@ else:
     # Display each card
     for i, card in enumerate(flashcards):
         question = card.get('question', 'N/A')
-        options = card.get('options', {})
-        answer_key = card.get('answer', 'N/A').lower()
-        answer_text = options.get(answer_key, "Answer not found")
+        answer_text = card.get('answer', 'Answer not found')
 
         expander_title = f"**Card {i+1}:** {question}"
 
         with st.expander(expander_title):
-            st.markdown("**Options:**")
-            # Nicely format options
-            for key, value in sorted(options.items()): # Sort options A, B, C...
-                 st.markdown(f"&nbsp;&nbsp;&nbsp;**{key.upper()})** {value}")
-            
-            st.markdown("&nbsp;") # Little spacer
-            st.markdown(f"**Answer:** {answer_key.upper()}) {answer_text}")
+            st.markdown(f"**Answer:** {answer_text}")
             st.divider()
 
             # Regeneration button INSIDE the expander

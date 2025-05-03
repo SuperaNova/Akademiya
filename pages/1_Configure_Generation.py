@@ -107,52 +107,56 @@ if st.button("✨ Generate Content", use_container_width=True):
         if notes_style:
             sections_to_generate["key_points"] = notes_style
             style = sections_to_generate["key_points"]
-            # (Notes instruction logic based on style)
-            notes_instruction = f"Generate 3-7 key points."
+            # Update instruction to ask for point AND description
+            notes_instruction = f"Generate 3-7 key points, each with a brief description."
             if style == "Outline": notes_instruction += " Structure them as a hierarchical outline."
             elif style == "Sentence": notes_instruction += " Write them as complete sentences."
             else: notes_instruction += " Focus on relationships between concepts."
             prompt_sections.append(notes_instruction)
 
-        # Build Flashcards/Quiz instructions
-        generate_flashcards_quiz = False
-        num_items_to_gen = 0
-        # Determine primary item type and number if both toggled
+        # Separate Flashcards and Quiz instructions
         if gen_flashcards and num_flashcards_requested > 0:
             sections_to_generate["flashcards"] = True
-            generate_flashcards_quiz = True
-            num_items_to_gen = num_flashcards_requested 
-        elif gen_quiz and num_quiz_requested > 0:
-            sections_to_generate["quiz"] = True 
-            generate_flashcards_quiz = True
-            num_items_to_gen = num_quiz_requested
-        
+            flashcard_instruction = (
+                f"Generate {num_flashcards_requested} flashcards. "
+                f"Each MUST be an object with 'question' (string) and 'answer' (string)."
+            )
+            prompt_sections.append(flashcard_instruction)
+
+        if gen_quiz and num_quiz_requested > 0:
+            sections_to_generate["quiz"] = True
+            quiz_instruction = (
+                f"Generate {num_quiz_requested} multiple-choice quiz questions. "
+                f"Each MUST be an object with 'question' (string), 'options' (object with string keys like 'a', 'b', 'c', etc. and string values), and 'answer' (string matching one of the option keys)."
+            )
+            prompt_sections.append(quiz_instruction)
+
         # Build JSON schema description parts
         json_schema_parts = []
         if "summary" in sections_to_generate:
             json_schema_parts.append('  "summary": "<Generated summary text>"')
         if "key_points" in sections_to_generate:
-            # Using triple quotes for clarity on multi-line schema part
-            json_schema_parts.append('''\  "key_points": [
-    "<First key point>", 
-    "<Second key point>", 
+            # Update the JSON schema example for key_points
+            json_schema_parts.append('''\\  "key_points": [
+    { "point": "<Key Concept 1>", "description": "<Brief description 1>" }, 
+    { "point": "<Key Concept 2>", "description": "<Brief description 2>" }, 
     ...
   ]''')
-
-        if generate_flashcards_quiz:
-             flashcards_instruction = (
-                 f"Generate {num_items_to_gen} flashcards/quiz questions. "
-                 f"Each MUST be an object with keys: 'question' (string), 'options' (object with a,b,c,d), and 'answer' (key string)."
-             )
-             prompt_sections.append(flashcards_instruction)
-             # Using triple quotes for clarity
-             json_schema_parts.append('''\  "flashcards": [
-    { "question": "<Q1>", "options": {"a": "...", ...}, "answer": "..." },
+        if "flashcards" in sections_to_generate:
+            json_schema_parts.append('''\\  "flashcards": [
+    { "question": "<Q1>", "answer": "<A1>" },
+    { "question": "<Q2>", "answer": "<A2>" },
+    ...
+  ]''')
+        if "quiz" in sections_to_generate:
+            json_schema_parts.append('''\\  "quiz": [
+    { "question": "<Q1>", "options": {"a": "OptA", "b": "OptB", "c": "OptC"}, "answer": "a" },
+    { "question": "<Q2>", "options": {"a": "OptA", "b": "OptB", "c": "OptC"}, "answer": "b" },
     ...
   ]''')
 
         # Combine instructions & schema for the final system prompt
-        instructions_string = "\n".join([f"- {inst}" for inst in prompt_sections])
+        instructions_string = "\\n".join([f"- {inst}" for inst in prompt_sections])
         # Ensure proper joining for the schema string
         json_schema_string = "{\n" + ",\n".join(json_schema_parts) + "\n}" 
 
@@ -184,8 +188,19 @@ JSON Structure:
                     st.success("Content generated and parsed successfully!")
                     st.session_state['summary'] = parsed_data.get('summary')
                     st.session_state['key_points'] = parsed_data.get('key_points') 
-                    st.session_state['flashcards'] = parsed_data.get('flashcards') if gen_flashcards and "flashcards" in parsed_data else None
-                    st.session_state['quiz'] = parsed_data.get('flashcards') if gen_quiz and "flashcards" in parsed_data else None
+                    # Fetch flashcards and quiz data using their respective keys
+                    st.session_state['flashcards'] = parsed_data.get('flashcards') if "flashcards" in sections_to_generate else None
+                    st.session_state['quiz'] = parsed_data.get('quiz') if "quiz" in sections_to_generate else None
+                    
+                    # Determine the list of actually generated content types
+                    generated_types = []
+                    if st.session_state['summary']: generated_types.append("Summary")
+                    if st.session_state['key_points']: generated_types.append("Key Points")
+                    if st.session_state['flashcards']: generated_types.append("Flashcards")
+                    if st.session_state['quiz']: generated_types.append("Quiz") # Correct check now
+
+                    # Store this list in session state for regeneration
+                    st.session_state['content_types'] = generated_types
                 else: 
                      # Error messages are now handled within parse_json_response
                      st.warning("Parsing failed. Check errors above and the raw response on the Results page.")
